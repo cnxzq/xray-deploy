@@ -20,6 +20,10 @@ MEMORY_MAX="100M"
 MEMORY_HIGH="80M"
 LIMIT_NOFILE=65535
 
+# 安全选项（设为 yes 启用）
+# DISABLE_PASSWORD_AUTH=yes   — 禁用 SSH 密码登录（默认：不强制）
+# DISABLE_ROOT_LOGIN=yes      — 禁止 root 密码登录（默认：不强制）
+
 # ── Color ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; NC='\033[0m'
@@ -364,15 +368,26 @@ log "fail2ban 已启用"
 # ════════════════════════════════════════════════════════════════════════════
 #  8. SSH 安全加固
 # ════════════════════════════════════════════════════════════════════════════
-banner "Step 8: SSH 安全加固"
+banner "Step 8: SSH 安全加固（可选）"
 
-sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config
-sed -i 's/^PermitRootLogin yes/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config || true
-if ! grep -q '^PermitRootLogin prohibit-password' /etc/ssh/sshd_config; then
-  echo 'PermitRootLogin prohibit-password' >> /etc/ssh/sshd_config
+if [[ "${DISABLE_PASSWORD_AUTH:-no}" == "yes" ]]; then
+  sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config
+  systemctl restart sshd
+  log "SSH 密码登录已禁用（DISABLE_PASSWORD_AUTH=yes）"
+else
+  warn "SSH 密码登录未禁用 — 如需关闭，运行前 export DISABLE_PASSWORD_AUTH=yes"
 fi
-systemctl restart sshd
-log "SSH 安全加固完成（密码登录禁用，root 仅证书登录）"
+
+if [[ "${DISABLE_ROOT_LOGIN:-no}" == "yes" ]]; then
+  sed -i 's/^PermitRootLogin yes/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config || true
+  if ! grep -q '^PermitRootLogin prohibit-password' /etc/ssh/sshd_config; then
+    echo 'PermitRootLogin prohibit-password' >> /etc/ssh/sshd_config
+  fi
+  systemctl restart sshd
+  log "root 密码登录已禁用（DISABLE_ROOT_LOGIN=yes）"
+else
+  warn "root 密码登录未禁用 — 如需关闭，运行前 export DISABLE_ROOT_LOGIN=yes"
+fi
 
 # SSH Banner
 cat > /etc/ssh/banner << 'BAN'

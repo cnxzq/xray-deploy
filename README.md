@@ -58,6 +58,23 @@ iptables -L INPUT -n       # 查看防火墙
 fail2ban-client status sshd        # 查看防暴力破解
 ```
 
+## 安全选项
+
+默认 SSH 保持原有配置（不强制禁用密码）。如需加固，运行前设置环境变量：
+
+```bash
+# 禁用密码登录（仅允许证书）
+export DISABLE_PASSWORD_AUTH=yes
+
+# 禁止 root 密码登录（证书登录仍然可用）
+export DISABLE_ROOT_LOGIN=yes
+
+# 一起用
+export DISABLE_PASSWORD_AUTH=yes DISABLE_ROOT_LOGIN=yes
+
+curl -sL https://raw.githubusercontent.com/cnxzq/xray-deploy/main/xray-deploy.sh | bash
+```
+
 ## 配置
 
 部署时自动生成随机 UUID 和 Reality 密钥对。如需自定义，在脚本顶部修改：
