@@ -4,7 +4,7 @@ VLESS+Reality + VLESS+WebSocket 代理服务一键部署。跑在新服务器上
 
 ## 快速开始
 
-在新 VPS 上以 **root** 运行：
+在新 VPS 上以 **root** 运行（最轻量化，仅装 Xray + 配置防火墙）：
 
 ```bash
 curl -sL https://raw.githubusercontent.com/cnxzq/xray-deploy/main/xray-deploy.sh | bash
@@ -17,21 +17,36 @@ wget https://raw.githubusercontent.com/cnxzq/xray-deploy/main/xray-deploy.sh
 chmod +x xray-deploy.sh && ./xray-deploy.sh
 ```
 
+### 完整部署（含 fail2ban + SSH 加固）
+
+```bash
+export INSTALL_FAIL2BAN=yes DISABLE_PASSWORD_AUTH=yes DISABLE_ROOT_LOGIN=yes
+curl -sL https://raw.githubusercontent.com/cnxzq/xray-deploy/main/xray-deploy.sh | bash
+```
+
 ## 部署内容
 
-| 组件 | 说明 |
-|------|------|
-| VLESS+Reality | TCP 8443，xtls-rprx-vision，主力代理 |
-| VLESS+WebSocket | TCP 2087，路径 /ws，备用通道 |
-| SOCKS5 | localhost:1080，服务器端本地调试 |
-| BBR | TCP 拥塞控制优化 |
-| mux | 多路复用，concurrency=8 |
-| TCP Fast Open | 首次连接加速 |
-| iptables | 仅放行 SSH(22) + 代理端口(8443,2087) |
-| IPv6 防火墙 | 默认 DROP，仅放行 SSH(22) |
-| fail2ban | SSH 暴力破解防护 |
-| logrotate | 日志轮转，保留7天 |
-| SSH 加固 | 禁用密码登录，root 仅证书认证 |
+| 组件 | 说明 | 默认 |
+|------|------|------|
+| VLESS+Reality | TCP 8443，xtls-rprx-vision，主力代理 | ✅ 一直安装 |
+| VLESS+WebSocket | TCP 2087，路径 /ws，备用通道 | ✅ 一直安装 |
+| SOCKS5 | localhost:1080，服务器端本地调试 | ✅ 一直安装 |
+| BBR | TCP 拥塞控制优化 | ✅ 一直安装 |
+| mux | 多路复用，concurrency=8 | ✅ 一直安装 |
+| TCP Fast Open | 首次连接加速 | ✅ 一直安装 |
+| iptables | 仅放行 SSH(22) + 代理端口(8443,2087) | ✅ 一直安装 |
+| IPv6 防火墙 | 默认 DROP，仅放行 SSH(22) | ✅ 一直安装 |
+| logrotate | 日志轮转，保留7天 | ✅ 一直安装 |
+| fail2ban | SSH 暴力破解防护 | ⬜ 需 `INSTALL_FAIL2BAN=yes` |
+| SSH 密码禁用 | 仅允许证书登录 | ⬜ 需 `DISABLE_PASSWORD_AUTH=yes` |
+| root 仅证书 | 禁止 root 密码登录 | ⬜ 需 `DISABLE_ROOT_LOGIN=yes` |
+
+## 轻量化原则
+
+默认只安装**必需**组件：Xray 核心 + iptables 防火墙 + logrotate。
+fail2ban（~50MB Python 依赖）和 SSH 加固默认跳过，可按需启用。
+
+适合 256~512MB 内存的廉价 VPS。
 
 ## 系统要求
 
@@ -63,14 +78,17 @@ fail2ban-client status sshd        # 查看防暴力破解
 默认 SSH 保持原有配置（不强制禁用密码）。如需加固，运行前设置环境变量：
 
 ```bash
+# 安装 fail2ban SSH 暴力破解防护（~50MB Python 依赖）
+export INSTALL_FAIL2BAN=yes
+
 # 禁用密码登录（仅允许证书）
 export DISABLE_PASSWORD_AUTH=yes
 
 # 禁止 root 密码登录（证书登录仍然可用）
 export DISABLE_ROOT_LOGIN=yes
 
-# 一起用
-export DISABLE_PASSWORD_AUTH=yes DISABLE_ROOT_LOGIN=yes
+# 全开
+export INSTALL_FAIL2BAN=yes DISABLE_PASSWORD_AUTH=yes DISABLE_ROOT_LOGIN=yes
 
 curl -sL https://raw.githubusercontent.com/cnxzq/xray-deploy/main/xray-deploy.sh | bash
 ```

@@ -20,9 +20,11 @@ MEMORY_MAX="100M"
 MEMORY_HIGH="80M"
 LIMIT_NOFILE=65535
 
-# 安全选项（设为 yes 启用）
-# DISABLE_PASSWORD_AUTH=yes   — 禁用 SSH 密码登录（默认：不强制）
-# DISABLE_ROOT_LOGIN=yes      — 禁止 root 密码登录（默认：不强制）
+# 最轻量化原则：默认只安装 Xray + 防火墙，不装非必需软件
+# 如需额外加固，运行前设环境变量：
+#   export DISABLE_PASSWORD_AUTH=yes  — 禁用 SSH 密码登录
+#   export DISABLE_ROOT_LOGIN=yes     — root 仅证书登录
+#   export INSTALL_FAIL2BAN=yes       — 安装 fail2ban（占用 ~50MB Python 依赖）
 
 # ── Color ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -334,20 +336,19 @@ log "防火墙规则已生效"
 iptables -L INPUT -n --line-numbers 2>/dev/null | head -8
 
 # ════════════════════════════════════════════════════════════════════════════
-#  7. fail2ban
+#  7. fail2ban（可选，需 INSTALL_FAIL2BAN=yes）
 # ════════════════════════════════════════════════════════════════════════════
+if [[ "${INSTALL_FAIL2BAN:-no}" == "yes" ]]; then
 banner "Step 7: fail2ban"
-
 if command -v fail2ban-client &>/dev/null; then
   info "fail2ban 已安装"
 else
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq fail2ban 2>/dev/null
   log "fail2ban 已安装"
 fi
-
-# 确保 sshd jail 启用
-mkdir -p /etc/fail2ban
-cat > /etc/fail2ban/jail.local << 'JAIL'
+  # 确保 sshd jail 启用
+  mkdir -p /etc/fail2ban
+  cat > /etc/fail2ban/jail.local << 'JAIL'
 [DEFAULT]
 bantime = 1h
 findtime = 10m
@@ -360,15 +361,18 @@ port = ssh
 logpath = %(sshd_log)s
 backend = %(sshd_backend)s
 JAIL
-
-systemctl enable --now fail2ban 2>/dev/null
-systemctl restart fail2ban 2>/dev/null
-log "fail2ban 已启用"
+  systemctl enable --now fail2ban 2>/dev/null
+  systemctl restart fail2ban 2>/dev/null
+  log "fail2ban 已启用"
+else
+  banner "Step 7: fail2ban（跳过）"
+  warn "fail2ban 未安装（最轻量化）— 如需安装，运行前 export INSTALL_FAIL2BAN=yes"
+fi
 
 # ════════════════════════════════════════════════════════════════════════════
-#  8. SSH 安全加固
+#  8. SSH 安全加固（可选）
 # ════════════════════════════════════════════════════════════════════════════
-banner "Step 8: SSH 安全加固（可选）"
+banner "Step 8: SSH 安全加固"
 
 if [[ "${DISABLE_PASSWORD_AUTH:-no}" == "yes" ]]; then
   sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config
